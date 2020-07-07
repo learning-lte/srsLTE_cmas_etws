@@ -487,6 +487,8 @@ bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
   asn1::rrc::pcch_msg_s pcch_msg;
   pcch_msg.msg.set_c1();
   paging_s* paging_rec = &pcch_msg.msg.c1().paging();
+  paging_v920_ies_s paging_rec_v920; 
+  paging_v890_ies_s paging_rec_v890;
 
   // Default paging cycle, should get DRX from user
   uint32_t T  = cfg.sibs[1].sib2().rr_cfg_common.pcch_cfg.default_paging_cycle.to_number();
@@ -522,6 +524,16 @@ bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
 
       if ((uint32_t)sf_idx == (tti % 10)) {
         paging_rec->paging_record_list_present = true;
+        //add sib10
+        paging_rec->etws_ind_present = true;
+        //add sib 12
+        paging_rec_v920.cmas_ind_r9_present = true;
+        paging_rec_v890.non_crit_ext_present = true;
+        paging_rec_v890.non_crit_ext = paging_rec_v920;
+        paging_rec->non_crit_ext_present = true;
+        paging_rec->non_crit_ext = paging_rec_v890;
+        //sib12 finish
+
         paging_rec->paging_record_list.push_back(u);
         ue_to_remove.push_back(ueid);
         n++;

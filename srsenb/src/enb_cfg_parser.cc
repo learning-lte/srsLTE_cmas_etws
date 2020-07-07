@@ -1412,6 +1412,29 @@ int parse_sib9(std::string filename, sib_type9_s* data)
   }
 }
 
+int parse_sib10(std::string filename, asn1::rrc::sib_type10_s* data) // new sib 10
+{
+  parser::section sib10("sib10");
+  sib10.add_field(make_asn1_bitstring_number_parser("message_identifier", &data->msg_id));
+  sib10.add_field(make_asn1_bitstring_number_parser("serial_number", &data->serial_num));
+  sib10.add_field(make_asn1_octstring_number_parser("warning_type", &data->warning_type));
+  return 0;
+}
+int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new sib 12
+{
+  parser::section sib12("sib12");
+  sib12.add_field(make_asn1_bitstring_number_parser("message_identifier", &data->msg_id_r9));
+  sib12.add_field(make_asn1_bitstring_number_parser("serial_number", &data->serial_num_r9));
+  sib12.add_field(make_asn1_octstring_number_parser("data_coding_scheme", &data->data_coding_scheme_r9));
+  data->data_coding_scheme_r9_present = true;
+  sib12.add_field(make_asn1_enum_str_parser("warning_msg_segment_type", &data->warning_msg_segment_type_r9));
+  //sib12.add_field(make_asn1_bitstring_number_parser("warning_msg_segment_num", &data->warning_msg_segment_num_r9));
+  sib12.add_field(new parser::field<uint8_t>("warning_msg_segment_num", &data->warning_msg_segment_num_r9));
+  field_asn1_octstring_number<asn1::dyn_octstring,std::string>("warning_msg_segment_r9", &data->warning_msg_segment_r9);
+  //load oct file in future
+  return 0;
+}
+
 int parse_sib13(std::string filename, sib_type13_r9_s* data)
 {
   parser::section sib13("sib13");
@@ -1443,6 +1466,8 @@ int parse_sibs(all_args_t* args_, rrc_cfg_t* rrc_cfg_, srsenb::phy_cfg_t* phy_co
   sib_type4_s*     sib4  = &rrc_cfg_->sibs[3].set_sib4();
   sib_type7_s*     sib7  = &rrc_cfg_->sibs[6].set_sib7();
   sib_type9_s*     sib9  = &rrc_cfg_->sibs[8].set_sib9();
+  sib_type10_s*    sib10 = &rrc_cfg_->sibs[9].set_sib10();
+  sib_type12_r9_s* sib12 = &rrc_cfg_->sibs[11].set_sib12_v920();
   sib_type13_r9_s* sib13 = &rrc_cfg_->sibs[12].set_sib13_v920();
 
   sib_type1_s* sib1 = &rrc_cfg_->sib1;
@@ -1520,6 +1545,19 @@ int parse_sibs(all_args_t* args_, rrc_cfg_t* rrc_cfg_, srsenb::phy_cfg_t* phy_co
   // Generate SIB9 if defined in mapping info
   if (sib_is_present(sib1->sched_info_list, sib_type_e::sib_type9)) {
     if (sib_sections::parse_sib9(args_->enb_files.sib_config, sib9) != SRSLTE_SUCCESS) {
+      return SRSLTE_ERROR;
+    }
+  }
+
+  // Generate SIB10 if defined in mapping info
+  if (sib_is_present(sib1->sched_info_list, sib_type_e::sib_type10)) {
+    if (sib_sections::parse_sib10(args_->enb_files.sib_config, sib10) != SRSLTE_SUCCESS) {
+      return SRSLTE_ERROR;
+    }
+  }
+  // Generate SIB12 if defined in mapping info
+  if (sib_is_present(sib1->sched_info_list, sib_type_e::sib_type12_v920)) {
+    if (sib_sections::parse_sib12(args_->enb_files.sib_config, sib12) != SRSLTE_SUCCESS) {
       return SRSLTE_ERROR;
     }
   }

@@ -1,3 +1,21 @@
+sib10 =
+{
+    message_identifier = 0x1104;
+    serial_number = 0x3000;
+    warning_type = "0x580";
+}
+
+sib12 =
+{
+    message_identifier = 0x1112;
+    serial_number = 0x3000;
+    data_coding_scheme = 01;
+    warning_msg_segment_type = "lastSegment";
+    warning_msg_segment_num = 0;
+    warning_msg_segment_r9 = "01C576597E2EBBC7F950A8D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D168341A8D46A3D1000A";
+};
+
+
 sib1 =
 {
     intra_freq_reselection = "Allowed";
@@ -11,7 +29,7 @@ sib1 =
             si_periodicity = 16;
 
             // comma-separated array of SIB-indexes (from 3 to 13), leave empty or commented to just scheduler sib2
-            si_mapping_info = [ 3 ];
+            si_mapping_info = [ 12 ];
         }
     );
     system_info_value_tag = 0;

@@ -1423,16 +1423,107 @@ int parse_sib10(std::string filename, asn1::rrc::sib_type10_s* data) // new sib 
 int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new sib 12
 {
   parser::section sib12("sib12");
+  fprintf(stdout,"parse sib12\n");
   sib12.add_field(make_asn1_bitstring_number_parser("message_identifier", &data->msg_id_r9));
   sib12.add_field(make_asn1_bitstring_number_parser("serial_number", &data->serial_num_r9));
   sib12.add_field(make_asn1_octstring_number_parser("data_coding_scheme", &data->data_coding_scheme_r9));
+  data->data_coding_scheme_r9[0] = 0x48;
   data->data_coding_scheme_r9_present = true;
   sib12.add_field(make_asn1_enum_str_parser("warning_msg_segment_type", &data->warning_msg_segment_type_r9));
-  //sib12.add_field(make_asn1_bitstring_number_parser("warning_msg_segment_num", &data->warning_msg_segment_num_r9));
   sib12.add_field(new parser::field<uint8_t>("warning_msg_segment_num", &data->warning_msg_segment_num_r9));
-  field_asn1_octstring_number<asn1::dyn_octstring,std::string>("warning_msg_segment_r9", &data->warning_msg_segment_r9);
-  //load oct file in future
-  return 0;
+  field_asn1_octstring_number<asn1::dyn_octstring,std::string> warning_msg_segment("warning_msg_segment_r9", &data->warning_msg_segment_r9);
+  unsigned int message[] = {
+    0x01,
+    0xC5,
+    0x76,
+    0x59,
+    0x7E,
+    0x2E,
+    0xBB,
+    0xC7,
+    0xF9,
+    0x50,
+    0xA8,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x68,
+    0x34,
+    0x1A,
+    0x8D,
+    0x46,
+    0xA3,
+    0xD1,
+    0x00,
+    0x0A
+  };
+  data->warning_msg_segment_r9.resize(200);
+  for(int i =0 ; i < 84; i++)
+  {
+    data->warning_msg_segment_r9[i] = message[i];
+  }
+  return parser::parse_section(std::move(filename),&sib12);
 }
 
 int parse_sib13(std::string filename, sib_type13_r9_s* data)
@@ -1558,6 +1649,7 @@ int parse_sibs(all_args_t* args_, rrc_cfg_t* rrc_cfg_, srsenb::phy_cfg_t* phy_co
   // Generate SIB12 if defined in mapping info
   if (sib_is_present(sib1->sched_info_list, sib_type_e::sib_type12_v920)) {
     if (sib_sections::parse_sib12(args_->enb_files.sib_config, sib12) != SRSLTE_SUCCESS) {
+      fprintf(stdout,"sib12 error\n");
       return SRSLTE_ERROR;
     }
   }

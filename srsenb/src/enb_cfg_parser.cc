@@ -1418,7 +1418,7 @@ int parse_sib10(std::string filename, asn1::rrc::sib_type10_s* data) // new sib 
   sib10.add_field(make_asn1_bitstring_number_parser("message_identifier", &data->msg_id));
   sib10.add_field(make_asn1_bitstring_number_parser("serial_number", &data->serial_num));
   sib10.add_field(make_asn1_octstring_number_parser("warning_type", &data->warning_type));
-  return 0;
+  return parser::parse_section(std::move(filename),&sib10);
 }
 int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new sib 12
 {

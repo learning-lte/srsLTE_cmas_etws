@@ -1,5 +1,5 @@
 # srsLTE_cmas_etws
-Build and modify code from srsLTE(github.com/srsLTE/srsLTE)
+Build and modify code from srsLTE(https://github.com/srsLTE/srsLTE)
 
 My modify
 * Add code in enb_cfg_parser.cc and enb_cfg_parser.h

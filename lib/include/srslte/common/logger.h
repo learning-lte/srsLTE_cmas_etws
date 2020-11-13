@@ -41,7 +41,7 @@ public:
 
   logger() : pool(16 * 1024) {}
   virtual ~logger() = default;
-
+  virtual std::string get_filename() { return ""; }
   class log_str
   {
   public:

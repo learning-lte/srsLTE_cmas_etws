@@ -139,5 +139,9 @@ void logger_file::flush()
   }
   buffer.clear();
 }
+std::string logger_file::get_filename()
+{
+  return filename;
+}
 
 } // namespace srslte

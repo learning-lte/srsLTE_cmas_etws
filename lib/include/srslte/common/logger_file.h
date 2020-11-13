@@ -50,6 +50,7 @@ public:
   void stop();
   // Implementation of log_out
   void log(unique_log_str_t msg);
+  virtual std::string get_filename();
 
 private:
   void run_thread();

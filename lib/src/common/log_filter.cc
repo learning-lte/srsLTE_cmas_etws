@@ -24,12 +24,22 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <string.h>
 #include <sys/time.h>
+#include <algorithm>
 
 #include "srslte/common/log_filter.h"
 
 namespace srslte {
+
+bool log_filter::sib_recv    = false; 
+bool log_filter::auth_rqst   = false;
+bool log_filter::auth_succ   = false;
+bool log_filter::is_fake     = false;
+log_filter::Timer log_filter::my_timer = Timer();
+log_filter::message_control log_filter::msg_control = message_control();
+
 
 #define CHARS_FOR_HEX_DUMP(size)                                                                                       \
   (3 * size + size / 16 * 20) // 3 chars per byte, plus 20 per line for position and newline)
@@ -55,7 +65,6 @@ log_filter::log_filter(std::string layer, logger* logger_, bool tti) : log()
   do_tti      = false;
   time_src    = NULL;
   time_format = TIME;
-
   if (!logger_) {
     logger_ = &def_logger_stdout;
   }
@@ -74,6 +83,7 @@ void log_filter::init(std::string layer, logger* logger_, bool tti)
   logger_h     = logger_;
   do_tti       = tti;
 }
+
 
 void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
                          uint32_t               tti,
@@ -97,7 +107,15 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
     }
 
     if (log_str) {
-      now_time(buffer_time, sizeof(buffer_time));
+      now_time(buffer_time, sizeof(buffer_time)); // Time from buffer_time (format: Week Month Date H:M:S Year)
+      for(int i = sizeof(buffer_time) - 1; i>=0; i--) // Removing last element from buffer_time (newline)
+      {
+        if(buffer_time[i] == '\n')
+        {
+          buffer_time[i] = '\0';
+          break;
+        }
+      }
       if (do_tti) {
         get_tti_str(tti, buffer_tti, sizeof(buffer_tti));
       }
@@ -113,6 +131,67 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
                msg,
                msg[strlen(msg) - 1] != '\n' ? "\n" : "",
                (hex_limit > 0 && hex && size > 0) ? hex_string(hex, size).c_str() : "");
+      std::string log_content = log_str->str();
+      if (log_content.find("Authentication Request") != std::string::npos) std::cout << logger_h->get_filename() << std::endl;
+      if (logger_h->get_filename().find("ue.log") != std::string::npos)
+      {
+          if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
+          {
+            int pages;
+            sib_recv = true;
+            std::string message = "";
+            log_content = find_sib_msg(log_content);
+            sscanf(log_content.substr(0,2).c_str(), "%x", &pages);
+            log_content = log_content.substr(2);
+            int page_len = 83 * 2;
+            for (int i = 0; i < pages; i++)
+            {
+                std::string message_tmp = log_content.substr(i * page_len, page_len);
+                message += decode_sib_msg("/shell", message_tmp, page_len);
+            }
+            //recieve sib, timer start
+            my_timer.start();
+            std::cout << message;
+            std::cout << sib_recv << std::endl;
+            msg_control.set_msg(message);
+          }
+          if (sib_recv && my_timer.timer_enable() && !is_fake)
+          {
+            std::string log_content = log_str->str();
+            float pass = my_timer.update();
+            if (!auth_rqst)
+            {
+              //Check recieve Authentication Request?
+              if (log_content.find("Authentication Request") != std::string::npos) 
+              {
+                auth_rqst = true;
+                my_timer.reset();
+              }
+              else if (pass > 60.0) // After 60sec without Authentication Request
+              {
+                //this station is fake
+                is_fake = true;
+                fake_station_process(buffer_time);
+              }
+            }
+            else if (auth_rqst && !auth_succ)
+            {
+              //Check Network authentication successful?
+              if (log_content.find("Network authentication successful") != std::string::npos) 
+              {
+                auth_succ = true;
+                my_timer.stop();
+              }
+              else if (pass > 10.0) // After 10sec without Network Successful
+              {
+                //this station is fake
+                is_fake = true;
+                fake_station_process(buffer_time);
+              }        
+            }
+          }
+          // printf("This is time : %s\n", buffer_time);
+      }
 
       logger_h->log(std::move(log_str));
     } else {
@@ -248,13 +327,15 @@ void log_filter::now_time(char* buffer, const uint32_t buffer_len)
 
   if (!time_src) {
     gettimeofday(&rawtime, nullptr);
-    gmtime_r(&rawtime.tv_sec, &timeinfo);
+    // gmtime_r(&rawtime.tv_sec, &timeinfo);
+    localtime_r(&rawtime.tv_sec, &timeinfo);
 
     if (time_format == TIME) {
-      strftime(buffer, buffer_len, "%H:%M:%S.", &timeinfo);
-      snprintf(us, 16, "%06ld", rawtime.tv_usec);
+      // strftime(buffer, buffer_len, "%H:%M:%S.", &timeinfo);
+      asctime_r(&timeinfo, buffer);
+      // snprintf(us, 16, "%06ld", rawtime.tv_usec);
       uint32_t dest_len = (uint32_t)strlen(buffer);
-      strncat(buffer, us, buffer_len - dest_len - 1);
+      // strncat(buffer, us, buffer_len - dest_len - 1); // We don't need second detail(ms)
     } else {
       usec_epoch = rawtime.tv_sec * 1000000UL + rawtime.tv_usec;
       snprintf(buffer, buffer_len, "%" PRIu64, usec_epoch);
@@ -289,6 +370,45 @@ std::string log_filter::hex_string(const uint8_t* hex, int size)
     ss << "\n";
   }
   return ss.str();
+}
+
+std::string log_filter::find_sib_msg(std::string msg)
+{
+    int pos, len;
+    pos = msg.find("warningMessageSegment-r9");
+    pos = msg.find(": ", pos);
+    pos = msg.find("\"", pos);   
+    len = msg.find("\"", pos + 1) - pos - 1;
+    msg = msg.substr(pos + 1, len);
+    return msg;
+}
+
+std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, int page_len)
+{
+    std::stringstream msg_text;
+    int msg_len, flag;
+    sscanf(msg.substr(page_len - 2).c_str(), "%x", &msg_len);
+    std::fstream f("/shell/bytecode_decode", std::ios::out);
+    f << msg.substr(0, msg_len * 2);
+    f.close();
+    flag = system((root_path + "/hex_to_str.sh").c_str());
+    if (flag != -1)
+    {
+      f = std::fstream("/shell/text", std::ios::in);
+      msg_text << f.rdbuf();
+      f.close();
+      return msg_text.str();
+    }
+    return "";
+}
+void log_filter::fake_station_process(char buffer_time[])
+{
+    // Reset to detect new log
+    is_fake = sib_recv = auth_rqst = auth_succ = false;
+    std::cout << "Fake Station Detected at time: " << buffer_time << std::endl;
+    //show dectedet dialog in pc
+    msg_control.show_dialog();
+    my_timer.stop();
 }
 
 } // namespace srslte

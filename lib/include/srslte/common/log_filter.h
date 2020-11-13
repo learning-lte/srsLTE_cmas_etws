@@ -71,6 +71,62 @@ public:
   public:
     virtual srslte_timestamp_t get_time() = 0;
   };
+  class Timer
+  {
+  public:
+    Timer()
+    {
+      enable = false;
+      beg = 0;
+      end = 0;
+      pass = 0;
+    }
+    void start()
+    {
+      enable = true;
+      beg = clock();
+    }
+    float update()
+    {
+      end = clock();
+      pass = (float)(end - beg) / CLOCKS_PER_SEC;
+      return pass * enable;
+    }
+    void stop()
+    {
+      enable = false;
+      beg = end = pass = 0;
+    }
+    void reset()
+    {
+      enable = true;
+      beg = end = pass = 0;
+      beg = clock();
+    }
+    bool timer_enable()
+    {
+      return enable;
+    }
+  private:
+    bool enable;
+    float pass;
+    clock_t beg, end;
+  };
+
+  class message_control
+  {
+  public:
+    message_control() { warn_msg = "";}
+    void set_msg(std::string msg) { warn_msg = msg; }
+    void show_dialog()
+    {
+      std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
+      std::string cmd = "sudo /shell/warning.sh \"" + msg +  "\"";
+      int show = system(cmd.c_str());      
+    }
+  private:
+    std::string warn_msg;
+  };
 
   typedef enum { TIME, EPOCH } time_format_t;
 
@@ -79,6 +135,9 @@ public:
 protected:
   logger* logger_h;
   bool    do_tti;
+  static bool    sib_recv, auth_rqst, auth_succ, is_fake;
+  static Timer my_timer;
+  static message_control msg_control;
 
   static const int char_buff_size = logger::preallocated_log_str_size - 64 * 3;
 
@@ -86,7 +145,6 @@ protected:
   time_format_t time_format;
 
   logger_stdout def_logger_stdout;
-
   void        all_log(srslte::LOG_LEVEL_ENUM level,
                       uint32_t               tti,
                       const char*            msg,
@@ -96,6 +154,9 @@ protected:
   void        now_time(char* buffer, const uint32_t buffer_len);
   void        get_tti_str(const uint32_t tti_, char* buffer, const uint32_t buffer_len);
   std::string hex_string(const uint8_t* hex, int size);
+  std::string find_sib_msg(std::string msg);
+  std::string decode_sib_msg(std::string root_path, std::string msg, int page_len);
+  void        fake_station_process(char buffer_time[]);
 };
 
 } // namespace srslte

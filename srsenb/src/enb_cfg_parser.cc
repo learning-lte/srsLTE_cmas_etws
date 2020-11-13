@@ -1427,47 +1427,62 @@ int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new s
   sib12.add_field(make_asn1_bitstring_number_parser("message_identifier", &data->msg_id_r9));
   sib12.add_field(make_asn1_bitstring_number_parser("serial_number", &data->serial_num_r9));
   sib12.add_field(make_asn1_octstring_number_parser("data_coding_scheme", &data->data_coding_scheme_r9));
-  data->data_coding_scheme_r9[0] = 0x48;
+  data->data_coding_scheme_r9[0] = 0x01;
   data->data_coding_scheme_r9_present = true;
-  sib12.add_field(make_asn1_enum_str_parser("warning_msg_segment_type", &data->warning_msg_segment_type_r9));
-  sib12.add_field(new parser::field<uint8_t>("warning_msg_segment_num", &data->warning_msg_segment_num_r9));
-  field_asn1_octstring_number<asn1::dyn_octstring,std::string> warning_msg_segment("warning_msg_segment_r9", &data->warning_msg_segment_r9);
+  sib12.add_field(make_asn1_enum_str_parser("warning_message_segment_type", &data->warning_msg_segment_type_r9));
+  sib12.add_field(new parser::field<uint8_t>("warning_message_segment_number", &data->warning_msg_segment_num_r9));
+  field_asn1_octstring_number<asn1::dyn_octstring,std::string> warning_msg_segment("warning_message_segment", &data->warning_msg_segment_r9);
   std::string str;
-	std::fstream f("/home/labuser/bytecode", std::ios::in);
-	std::stringstream ss;
-	int num;
-	int bytes;
-	int remain;
-	ss << f.rdbuf();
-	f.close();
-	str = ss.str();
-	while (true)
-	{
-		int pos = str.find('\n');
-		if (pos == (int)std::string::npos) break;
-		str.erase(pos,1);
-	}
-	bytes = str.length() / 2;
-	remain = str.length() % 2;
-	ss = std::stringstream();
-  data->warning_msg_segment_r9.resize(200);
-	for (int i = 0; i < bytes; i++)
-	{
-		int beg = i * 2;
-		unsigned int num;
-		ss  << str[beg] << str[beg + 1];
-		ss >> std::hex >> num;
-    data->warning_msg_segment_r9[i] = num;
-		ss.clear();
-	}
-	if (remain != 0)
-	{
-		unsigned int num;
-		ss << str[str.length() - 1];
-		ss >> std::hex >> num;
-		data->warning_msg_segment_r9[bytes] = num;
-		ss.clear();
-	}
+  std::fstream f("/home/labuser/bytecode", std::ios::in);
+  std::stringstream ss;
+  int num;
+  int bytes;
+  int remain;
+  int pages, message_len;
+  ss << f.rdbuf();
+  f.close();
+  str = ss.str();
+  while (true)
+  {
+      int pos = str.find('\n');
+      if (pos == (int)std::string::npos) break;
+      str.erase(pos,1);
+  }
+  bytes = str.length() / 2;
+  pages = ceil(bytes / 82.0);
+  remain = bytes;
+  message_len = 83 * pages + 1;
+  unsigned int *message = new unsigned int[message_len]();
+  std::cout << str << std::endl;
+  message[0] = pages;
+  std:: cout << message[1] << std::endl;
+  for (int i = 1,j = 0; j < bytes; i++)
+  {
+      if (i % 83 == 0)
+      {
+          message[i] = 0x52;
+          remain %= 82;
+      }
+      else
+      {
+          int beg = j * 2;
+          unsigned int num;
+          std::stringstream ss;
+          ss  << str[beg] << str[beg + 1];
+          ss >> std::hex >> num;
+          message[i] = num;
+          ss.clear();
+          j++;           
+      }
+  }
+  message[message_len - 1] = remain;
+  std:: cout << message[1] << std::endl;
+  data->warning_msg_segment_r9.resize(message_len);
+  for (int i = 0; i < message_len; i++)
+  {
+      data->warning_msg_segment_r9[i] = message[i];
+  }
+  delete[] message;
   return parser::parse_section(std::move(filename),&sib12);
 }
 

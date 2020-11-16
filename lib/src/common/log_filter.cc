@@ -25,6 +25,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <string>
 #include <string.h>
 #include <sys/time.h>
 #include <algorithm>
@@ -132,9 +133,24 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
                msg[strlen(msg) - 1] != '\n' ? "\n" : "",
                (hex_limit > 0 && hex && size > 0) ? hex_string(hex, size).c_str() : "");
       std::string log_content = log_str->str();
-      if (log_content.find("Authentication Request") != std::string::npos) std::cout << logger_h->get_filename() << std::endl;
       if (logger_h->get_filename().find("ue.log") != std::string::npos)
       {
+          // Get cellid
+          int pos = -1;
+          std::string cid_str = "0";
+          if((pos = log_content.find("CellID=")) >= 0)
+          {
+            cid_str = "0";
+            while(log_content[pos] != '=') pos++;
+            pos++;
+            while(log_content[pos] >= '0' && log_content[pos] <= '9')
+            {
+              cid_str += log_content[pos];
+              pos++;
+            }
+            msg_control.set_cid(std::stoi(cid_str));
+          }
+          // Receiving Sib-12 message
           if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
           {
             int pages;
@@ -404,8 +420,10 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
 void log_filter::fake_station_process(char buffer_time[])
 {
     // Reset to detect new log
+    int cid = msg_control.get_cid();
     is_fake = sib_recv = auth_rqst = auth_succ = false;
     std::cout << "Fake Station Detected at time: " << buffer_time << std::endl;
+    if(cid) std::cout << "Cell ID = " << cid << std::endl;
     //show dectedet dialog in pc
     msg_control.show_dialog();
     my_timer.stop();

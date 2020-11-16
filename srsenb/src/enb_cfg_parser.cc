@@ -1472,7 +1472,7 @@ int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new s
           ss >> std::hex >> num;
           message[i] = num;
           ss.clear();
-          j++;           
+          j++;
       }
   }
   message[message_len - 1] = remain;

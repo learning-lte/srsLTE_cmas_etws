@@ -116,7 +116,7 @@ public:
   class message_control
   {
   public:
-    message_control() { warn_msg = "";}
+    message_control() { warn_msg = ""; cid = 0; }
     void set_msg(std::string msg) { warn_msg = msg; }
     void show_dialog()
     {
@@ -124,8 +124,17 @@ public:
       std::string cmd = "sudo /shell/warning.sh \"" + msg +  "\"";
       int show = system(cmd.c_str());      
     }
+    void set_cid(int cid_)
+    {
+      cid = cid_;
+    }
+    int get_cid()
+    {
+      return cid;
+    }
   private:
     std::string warn_msg;
+    int cid;
   };
 
   typedef enum { TIME, EPOCH } time_format_t;

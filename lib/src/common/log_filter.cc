@@ -148,7 +148,7 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
               cid_str += log_content[pos];
               pos++;
             }
-            msg_control.set_cid(std::stoi(cid_str));
+            msg_control.set_cid(cid_str);
           }
           // Receiving Sib-12 message
           if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
@@ -420,7 +420,7 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
 void log_filter::fake_station_process(char buffer_time[])
 {
     // Reset to detect new log
-    int cid = msg_control.get_cid();
+    int cid = std::stoi(msg_control.get_cid());
     is_fake = sib_recv = auth_rqst = auth_succ = false;
     std::cout << "Fake Station Detected at time: " << buffer_time << std::endl;
     if(cid) std::cout << "Cell ID = " << cid << std::endl;

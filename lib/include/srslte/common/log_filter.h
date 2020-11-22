@@ -116,25 +116,25 @@ public:
   class message_control
   {
   public:
-    message_control() { warn_msg = ""; cid = 0; }
+    message_control() { warn_msg = ""; cid = ""; }
     void set_msg(std::string msg) { warn_msg = msg; }
     void show_dialog()
     {
       std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
-      std::string cmd = "sudo /shell/warning.sh \"" + msg +  "\"";
+      std::string cmd = "sudo /shell/warning.sh " + cid  + " \"" +msg +  "\"";
       int show = system(cmd.c_str());      
     }
-    void set_cid(int cid_)
+    void set_cid(std::string cid_)
     {
       cid = cid_;
     }
-    int get_cid()
+    std::string  get_cid()
     {
       return cid;
     }
   private:
     std::string warn_msg;
-    int cid;
+    std::string cid;
   };
 
   typedef enum { TIME, EPOCH } time_format_t;

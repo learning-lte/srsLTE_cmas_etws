@@ -122,7 +122,7 @@ public:
     {
       std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
       std::string cmd = "sudo /shell/warning.sh " + cid  + " \"" +msg +  "\"";
-      int show = system(cmd.c_str());      
+      int show = system(cmd.c_str());
     }
     void set_cid(std::string cid_)
     {

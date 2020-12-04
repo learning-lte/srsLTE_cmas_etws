@@ -120,7 +120,6 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
       if (do_tti) {
         get_tti_str(tti, buffer_tti, sizeof(buffer_tti));
       }
-
       snprintf(log_str->str(),
                log_str->get_buffer_size(),
                "%s [%-4s] %s %s%s%s%s%s",

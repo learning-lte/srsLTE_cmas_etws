@@ -35,9 +35,11 @@
 namespace srslte {
 
 bool log_filter::sib_recv    = false; 
+bool log_filter::sib2_recv    = false;
 bool log_filter::auth_rqst   = false;
 bool log_filter::auth_succ   = false;
 bool log_filter::is_fake     = false;
+bool log_filter::detecte_dB_mode = false;
 log_filter::Timer log_filter::my_timer = Timer();
 log_filter::message_control log_filter::msg_control = message_control();
 
@@ -149,62 +151,10 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
             }
             msg_control.set_cid(cid_str);
           }
-          // Receiving Sib-12 message
-          if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
-          {
-            int pages;
-            sib_recv = true;
-            std::string message = "";
-            log_content = find_sib_msg(log_content);
-            sscanf(log_content.substr(0,2).c_str(), "%x", &pages);
-            log_content = log_content.substr(2);
-            int page_len = 83 * 2;
-            for (int i = 0; i < pages; i++)
-            {
-                std::string message_tmp = log_content.substr(i * page_len, page_len);
-                message += decode_sib_msg("/shell", message_tmp, page_len);
-            }
-            //recieve sib, timer start
-            my_timer.start();
-            std::cout << message;
-            std::cout << sib_recv << std::endl;
-            msg_control.set_msg(message);
-          }
-          if (sib_recv && my_timer.timer_enable() && !is_fake)
-          {
-            std::string log_content = log_str->str();
-            float pass = my_timer.update();
-            if (!auth_rqst)
-            {
-              //Check recieve Authentication Request?
-              if (log_content.find("Authentication Request") != std::string::npos) 
-              {
-                auth_rqst = true;
-                my_timer.reset();
-              }
-              else if (pass > 60.0) // After 60sec without Authentication Request
-              {
-                //this station is fake
-                is_fake = true;
-                fake_station_process(buffer_time);
-              }
-            }
-            else if (auth_rqst && !auth_succ)
-            {
-              //Check Network authentication successful?
-              if (log_content.find("Network authentication successful") != std::string::npos) 
-              {
-                auth_succ = true;
-                my_timer.stop();
-              }
-              else if (pass > 10.0) // After 10sec without Network Successful
-              {
-                //this station is fake
-                is_fake = true;
-                fake_station_process(buffer_time);
-              }        
-            }
-          }
+          // parse sib message
+          parse_sib(log_content);
+          // fake station detection
+          fake_detection(log_content, buffer_time);
           // printf("This is time : %s\n", buffer_time);
       }
 
@@ -398,12 +348,12 @@ std::string log_filter::find_sib_msg(std::string msg)
     return msg;
 }
 
-std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, int page_len)
+std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, int page_len, std::ios_base::openmode mode)
 {
     std::stringstream msg_text;
     int msg_len, flag;
     sscanf(msg.substr(page_len - 2).c_str(), "%x", &msg_len);
-    std::fstream f("/shell/bytecode_decode", std::ios::out);
+    std::fstream f("/shell/bytecode_decode", mode);
     f << msg.substr(0, msg_len * 2);
     f.close();
     flag = system((root_path + "/hex_to_str.sh").c_str());
@@ -416,16 +366,107 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
     }
     return "";
 }
+void log_filter::parse_sib(std::string log_content)
+{
+    if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
+    {
+      int pages;
+      sib_recv = true;
+      std::string message = "";
+      log_content = find_sib_msg(log_content);
+      sscanf(log_content.substr(0,2).c_str(), "%x", &pages);
+      log_content = log_content.substr(2);
+      int page_len = 83 * 2;
+      std::ios_base::openmode mode = std::ios::out;
+      for (int i = 0; i < pages; i++, mode = std::ios::app)
+      {
+          std::string message_tmp = log_content.substr(i * page_len, page_len);
+          message += decode_sib_msg("/shell", message_tmp, page_len, mode);
+      }
+      //recieve sib, timer start
+      my_timer.start();
+      std::cout << message;
+      std::cout << sib_recv << std::endl;
+      msg_control.set_msg(message);
+    }
+    else if (log_content.find("Processing SIB2") != std::string::npos)
+    {
+      msg_control.reset_snr();
+      sib2_recv = true;
+    }
+    else if (log_content.find("SNR=") != std::string::npos && sib2_recv && msg_control.get_snr_counts() < 100)
+    {
+      int pos = log_content.find("SNR=");
+      log_content = log_content.substr(pos + 4);
+      pos = log_content.find("dB");
+      log_content = log_content.substr(0,pos);
+      double n = std::stod(log_content.c_str());
+      msg_control.snr_update(n);
+    }
+}
+
 void log_filter::fake_station_process(char buffer_time[])
 {
     // Reset to detect new log
     int cid = std::stoi(msg_control.get_cid());
-    is_fake = sib_recv = auth_rqst = auth_succ = false;
+    sib_recv = auth_rqst = auth_succ = false;
     std::cout << "Fake Station Detected at time: " << buffer_time << std::endl;
     if(cid) std::cout << "Cell ID = " << cid << std::endl;
     //show dectedet dialog in pc
     msg_control.show_dialog();
     my_timer.stop();
+}
+void log_filter::fake_detection(std::string log_content, char buffer_time[])
+{
+    if (is_fake) return;
+    if (!detecte_dB_mode && sib_recv && my_timer.timer_enable())
+    {
+      float pass = my_timer.update();
+      if (!auth_rqst)
+      {
+        //Check recieve Authentication Request?
+        if (log_content.find("Authentication Request") != std::string::npos) 
+        {
+          auth_rqst = true;
+          my_timer.reset();
+        }
+        else if (pass > 60.0) // After 60sec without Authentication Request
+        {
+          //this station is fake
+          is_fake = true;
+          fake_station_process(buffer_time);
+        }
+      }
+      else if (auth_rqst && !auth_succ)
+      {
+        //Check Network authentication successful?
+        if (log_content.find("Network authentication successful") != std::string::npos) 
+        {
+          auth_succ = true;
+          my_timer.stop();
+        }
+        else if (pass > 10.0) // After 10sec without Network Successful
+        {
+          //this station is fake
+          is_fake = true;
+          fake_station_process(buffer_time);
+        }        
+      }
+    }
+    else if (detecte_dB_mode)
+    {
+      if (msg_control.get_snr_counts() >= 100)
+      {
+        double avg = msg_control.get_snr_avg();
+        if (avg >= 13.0)
+        {
+            is_fake = true;
+            fake_station_process(buffer_time);
+        }
+        msg_control.reset_snr();
+        sib2_recv = false;
+      }
+    } 
 }
 
 } // namespace srslte

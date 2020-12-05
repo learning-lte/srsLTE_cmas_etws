@@ -116,7 +116,7 @@ public:
   class message_control
   {
   public:
-    message_control() { warn_msg = ""; cid = ""; }
+    message_control() { warn_msg = ""; cid = "";}
     void set_msg(std::string msg) { warn_msg = msg; }
     void show_dialog()
     {
@@ -132,9 +132,29 @@ public:
     {
       return cid;
     }
+    void reset_snr()
+    {
+      snr_value = 0;
+      counts = 0;
+    }
+    void snr_update(double value)
+    {
+      snr_value += value;
+      counts++;
+    }
+    double get_snr_avg()
+    {
+      return snr_value / (double)counts;
+    }
+    int get_snr_counts()
+    {
+      return counts;
+    }
   private:
     std::string warn_msg;
     std::string cid;
+    double snr_value;
+    int counts;
   };
 
   typedef enum { TIME, EPOCH } time_format_t;
@@ -144,7 +164,8 @@ public:
 protected:
   logger* logger_h;
   bool    do_tti;
-  static bool    sib_recv, auth_rqst, auth_succ, is_fake;
+  static bool    sib_recv,sib2_recv, auth_rqst, auth_succ, is_fake;
+  static bool    detecte_dB_mode;
   static Timer my_timer;
   static message_control msg_control;
 
@@ -164,8 +185,10 @@ protected:
   void        get_tti_str(const uint32_t tti_, char* buffer, const uint32_t buffer_len);
   std::string hex_string(const uint8_t* hex, int size);
   std::string find_sib_msg(std::string msg);
-  std::string decode_sib_msg(std::string root_path, std::string msg, int page_len);
+  std::string decode_sib_msg(std::string root_path, std::string msg, int page_len, std::ios_base::openmode mode);
+  void        parse_sib(std::string log_content);
   void        fake_station_process(char buffer_time[]);
+  void        fake_detection(std::string log_content, char buffer_time[]);
 };
 
 } // namespace srslte

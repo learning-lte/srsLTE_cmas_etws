@@ -391,17 +391,17 @@ void log_filter::parse_sib(std::string log_content)
     }
     else if (log_content.find("Processing SIB2") != std::string::npos)
     {
-      msg_control.reset_snr();
+      msg_control.reset_rsrp();
       sib2_recv = true;
     }
-    else if (log_content.find("SNR=") != std::string::npos && sib2_recv && msg_control.get_snr_counts() < 100)
+    else if (log_content.find("RSRP=-") != std::string::npos && sib2_recv && msg_control.get_rsrp_counts() < 100)
     {
-      int pos = log_content.find("SNR=");
-      log_content = log_content.substr(pos + 4);
-      pos = log_content.find("dB");
+      int pos = log_content.find("RSRP=-");
+      log_content = log_content.substr(pos + 6);
+      pos = log_content.find("dBm");
       log_content = log_content.substr(0,pos);
       double n = std::stod(log_content.c_str());
-      msg_control.snr_update(n);
+      msg_control.rsrp_update(n);
     }
 }
 
@@ -455,15 +455,19 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
     }
     else if (detecte_dB_mode)
     {
-      if (msg_control.get_snr_counts() >= 100)
+      if (msg_control.get_rsrp_counts() >= 100)
       {
-        double avg = msg_control.get_snr_avg();
-        if (avg > 10.5)
+        double avg = msg_control.get_rsrp_avg();
+        if (avg > 99.9)
         {
             is_fake = true;
             fake_station_process(buffer_time);
         }
-        msg_control.reset_snr();
+        else
+        {
+          printf("RSRP: %f\n", avg);
+        }
+        msg_control.reset_rsrp();
         sib2_recv = false;
       }
     } 

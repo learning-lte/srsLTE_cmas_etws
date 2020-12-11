@@ -458,13 +458,13 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
       if (msg_control.get_snr_counts() >= 100)
       {
         double avg = msg_control.get_snr_avg();
-        if (avg > 10.5)
+        if (avg >= 8.0) // for usrp mini
         {
             is_fake = true;
             fake_station_process(buffer_time);
         }
         msg_control.reset_snr();
-        sib2_recv = false;
+        //sib2_recv = false;
       }
     } 
 }

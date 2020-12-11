@@ -457,7 +457,7 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
     {
       if (msg_control.get_rsrp_counts() >= 100)
       {
-        double avg = msg_control.get_rsrp_avg();
+        double avg = msg_control.get_snr_avg();
         if (avg > 99.0)
         {
             is_fake = true;

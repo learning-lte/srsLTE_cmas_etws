@@ -354,7 +354,7 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
     int msg_len, flag;
     sscanf(msg.substr(page_len - 2).c_str(), "%x", &msg_len);
     std::fstream f("/shell/bytecode_decode", mode);
-    f << msg.substr(0, msg_len * 2);
+    f << msg.substr(0, msg_len * 2) << std::endl;
     f.close();
     flag = system((root_path + "/hex_to_str.sh").c_str());
     if (flag != -1)
@@ -458,7 +458,7 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
       if (msg_control.get_rsrp_counts() >= 100)
       {
         double avg = msg_control.get_snr_avg();
-        if (avg >= 13.0)
+        if (avg > 99.0)
         {
             is_fake = true;
             fake_station_process(buffer_time);

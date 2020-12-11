@@ -39,7 +39,7 @@ bool log_filter::sib2_recv    = false;
 bool log_filter::auth_rqst   = false;
 bool log_filter::auth_succ   = false;
 bool log_filter::is_fake     = false;
-bool log_filter::detecte_dB_mode = true;
+bool log_filter::detecte_dB_mode = false;
 log_filter::Timer log_filter::my_timer = Timer();
 log_filter::message_control log_filter::msg_control = message_control();
 
@@ -418,7 +418,7 @@ void log_filter::fake_station_process(char buffer_time[])
 }
 void log_filter::fake_detection(std::string log_content, char buffer_time[])
 {
-    if (is_fake) return;
+    if (is_fake || true) return;
     if (!detecte_dB_mode && sib_recv && my_timer.timer_enable())
     {
       float pass = my_timer.update();

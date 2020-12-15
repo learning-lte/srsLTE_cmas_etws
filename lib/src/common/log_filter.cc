@@ -391,17 +391,22 @@ void log_filter::parse_sib(std::string log_content)
     }
     else if (log_content.find("Processing SIB2") != std::string::npos)
     {
-      msg_control.reset_snr();
+      msg_control.reset_snr_rsrp();
       sib2_recv = true;
     }
-    else if (log_content.find("SNR=") != std::string::npos && sib2_recv && msg_control.get_snr_counts() < 100)
+    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=") != std::string::npos && sib2_recv && msg_control.get_snr_counts() < 100)
     {
-      int pos = log_content.find("SNR=");
-      log_content = log_content.substr(pos + 4);
-      pos = log_content.find("dB");
-      log_content = log_content.substr(0,pos);
-      double n = std::stod(log_content.c_str());
-      msg_control.snr_update(n);
+      int pos1 = log_content.find("SNR="), pos2 = log_content.find("RSRP=-");
+      std::string snr, rsrp;
+      //get snr
+      snr = log_content.substr(pos1 + 4);
+      pos1 = snr.find("dB");
+      snr = snr.substr(0,pos1);
+      //get rsrp
+      rsrp = log_content.substr(pos2 + 4);
+      pos1 = rsrp.find("dB");
+      rsrp = rsrp.substr(0,pos2);
+      msg_control.snr_rsrp_update(std::stod(snr),std::stod(rsrp));
     }
 }
 
@@ -457,13 +462,26 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
     {
       if (msg_control.get_snr_counts() >= 100)
       {
-        double avg = msg_control.get_snr_avg();
-        if (avg >= 8.0) // for usrp mini
+        double snr_avg = msg_control.get_snr_avg();
+        double rsrp_avg = msg_control.get_rsrp_avg();
+        if (rsrp_avg >= 100) // for usrp mini
         {
+          if (snr_avg >= 5)
+          {
             is_fake = true;
             fake_station_process(buffer_time);
+          }
         }
-        msg_control.reset_snr();
+        else // for usrp
+        {
+          if (snr_avg >= 13)
+          {
+            is_fake = true;
+            fake_station_process(buffer_time);
+          }          
+        }
+        
+        msg_control.reset_snr_rsrp();
         //sib2_recv = false;
       }
     } 

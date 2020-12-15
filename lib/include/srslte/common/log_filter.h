@@ -132,28 +132,34 @@ public:
     {
       return cid;
     }
-    void reset_snr()
+    void reset_snr_rsrp()
     {
-      snr_value = 0;
+      snr = 0;
+      rsrp = 0;
       counts = 0;
     }
-    void snr_update(double value)
+    void snr_rsrp_update(double snr_, double rsrp_)
     {
-      snr_value += value;
+      snr += snr_;
+      rsrp += rsrp_;
       counts++;
     }
     double get_snr_avg()
     {
-      return snr_value / (double)counts;
+      return snr / (double)counts;
     }
-    int get_snr_counts()
+    double get_rsrp_avg()
+    {
+      return rsrp / (double)counts;
+    }
+    int get_counts()
     {
       return counts;
     }
   private:
     std::string warn_msg;
     std::string cid;
-    double snr_value;
+    double snr, rsrp;
     int counts;
   };
 

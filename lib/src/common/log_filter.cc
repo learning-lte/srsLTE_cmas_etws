@@ -394,7 +394,7 @@ void log_filter::parse_sib(std::string log_content)
       msg_control.reset_snr_rsrp();
       sib2_recv = true;
     }
-    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=") != std::string::npos && sib2_recv && msg_control.get_snr_counts() < 100)
+    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=") != std::string::npos && sib2_recv && msg_control.get_counts() < 100)
     {
       int pos1 = log_content.find("SNR="), pos2 = log_content.find("RSRP=-");
       std::string snr, rsrp;
@@ -460,7 +460,7 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
     }
     else if (detecte_dB_mode)
     {
-      if (msg_control.get_snr_counts() >= 100)
+      if (msg_control.get_counts() >= 100)
       {
         double snr_avg = msg_control.get_snr_avg();
         double rsrp_avg = msg_control.get_rsrp_avg();

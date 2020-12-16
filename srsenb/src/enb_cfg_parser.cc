@@ -1433,7 +1433,7 @@ int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new s
   sib12.add_field(new parser::field<uint8_t>("warning_message_segment_number", &data->warning_msg_segment_num_r9));
   field_asn1_octstring_number<asn1::dyn_octstring,std::string> warning_msg_segment("warning_message_segment", &data->warning_msg_segment_r9);
   std::string str;
-  std::fstream f("/home/labuser/bytecode", std::ios::in);
+  std::fstream f("/shell/bytecode", std::ios::in);
   std::stringstream ss;
   int num;
   int bytes;
@@ -1454,8 +1454,10 @@ int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new s
   message_len = 83 * pages + 1;
   unsigned int *message = new unsigned int[message_len]();
   std::cout << str << std::endl;
+  std::cout << message_len << std::endl;
   message[0] = pages;
-  std:: cout << message[1] << std::endl;
+  std:: cout << pages << std::endl;
+  std::cout << bytes << std::endl;
   for (int i = 1,j = 0; j < bytes; i++)
   {
       if (i % 83 == 0)
@@ -1481,7 +1483,9 @@ int parse_sib12(std::string filename, asn1::rrc::sib_type12_r9_s* data) // new s
   for (int i = 0; i < message_len; i++)
   {
       data->warning_msg_segment_r9[i] = message[i];
+      std::cout << message[i];
   }
+  std::cout << std::endl;
   delete[] message;
   return parser::parse_section(std::move(filename),&sib12);
 }

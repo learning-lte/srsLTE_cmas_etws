@@ -394,7 +394,7 @@ void log_filter::parse_sib(std::string log_content)
       msg_control.reset_snr_rsrp();
       sib2_recv = true;
     }
-    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=") != std::string::npos && sib2_recv && msg_control.get_counts() < 100)
+    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=-") != std::string::npos && sib2_recv && msg_control.get_counts() < 100)
     {
       int pos1 = log_content.find("SNR="), pos2 = log_content.find("RSRP=-");
       std::string snr, rsrp;
@@ -403,8 +403,8 @@ void log_filter::parse_sib(std::string log_content)
       pos1 = snr.find("dB");
       snr = snr.substr(0,pos1);
       //get rsrp
-      rsrp = log_content.substr(pos2 + 4);
-      pos1 = rsrp.find("dB");
+      rsrp = log_content.substr(pos2 + 6);
+      pos2 = rsrp.find("dBm");
       rsrp = rsrp.substr(0,pos2);
       msg_control.snr_rsrp_update(std::stod(snr),std::stod(rsrp));
     }
@@ -466,7 +466,8 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
         double rsrp_avg = msg_control.get_rsrp_avg();
         if (rsrp_avg >= 100) // for usrp mini
         {
-          if (snr_avg >= 5)
+          std::cout << snr_avg << " fuck " << rsrp_avg << std::endl;
+          if (snr_avg > 4)
           {
             is_fake = true;
             fake_station_process(buffer_time);
@@ -474,7 +475,7 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
         }
         else // for usrp
         {
-          if (snr_avg >= 13)
+          if (snr_avg >= 12)
           {
             is_fake = true;
             fake_station_process(buffer_time);

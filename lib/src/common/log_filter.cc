@@ -393,6 +393,7 @@ void log_filter::parse_sib(std::string log_content)
     {
       msg_control.reset_snr_rsrp();
       sib2_recv = true;
+      is_fake = false;
     }
     else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=-") != std::string::npos && sib2_recv && msg_control.get_counts() < 100)
     {
@@ -412,6 +413,8 @@ void log_filter::parse_sib(std::string log_content)
 
 void log_filter::fake_station_process(char buffer_time[])
 {
+    if (is_fake) return;
+    is_fake = true;
     // Reset to detect new log
     int cid = std::stoi(msg_control.get_cid());
     sib_recv = auth_rqst = auth_succ = false;
@@ -423,7 +426,7 @@ void log_filter::fake_station_process(char buffer_time[])
 }
 void log_filter::fake_detection(std::string log_content, char buffer_time[])
 {
-    if (is_fake) return;
+    //if (is_fake) return;
     if (!detecte_dB_mode && sib_recv && my_timer.timer_enable())
     {
       float pass = my_timer.update();
@@ -438,7 +441,6 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
         else if (pass > 60.0) // After 60sec without Authentication Request
         {
           //this station is fake
-          is_fake = true;
           fake_station_process(buffer_time);
         }
       }
@@ -453,7 +455,6 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
         else if (pass > 10.0) // After 10sec without Network Successful
         {
           //this station is fake
-          is_fake = true;
           fake_station_process(buffer_time);
         }        
       }
@@ -469,7 +470,7 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
           std::cout << snr_avg << " fuck " << rsrp_avg << std::endl;
           if (snr_avg > 4)
           {
-            is_fake = true;
+            sib2_recv = false;
             fake_station_process(buffer_time);
           }
         }
@@ -477,13 +478,11 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
         {
           if (snr_avg >= 12)
           {
-            is_fake = true;
+            sib2_recv = false;
             fake_station_process(buffer_time);
           }          
-        }
-        
+        }     
         msg_control.reset_snr_rsrp();
-        //sib2_recv = false;
       }
     } 
 }

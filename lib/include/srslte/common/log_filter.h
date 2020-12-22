@@ -32,6 +32,7 @@
 
 #include <stdarg.h>
 #include <string>
+#include <unistd.h>
 
 #include "srslte/common/log.h"
 #include "srslte/common/logger.h"
@@ -45,6 +46,8 @@ typedef std::string* str_ptr;
 class log_filter : public srslte::log
 {
 public:
+  static bool fake_detected_flag;
+  static int     fake_detected_count;
   log_filter();
   log_filter(std::string layer);
   log_filter(std::string layer, logger* logger_, bool tti = false);
@@ -121,8 +124,9 @@ public:
     void show_dialog()
     {
       std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
-      std::string cmd = "sudo /shell/warning.sh " + cid  + " \"" +msg +  "\"";
+      std::string cmd = "sudo 1/shell/warning.sh " + cid  + " \"" +msg +  "\"";
       int show = system(cmd.c_str());
+      sleep(5);
     }
     void set_cid(std::string cid_)
     {
@@ -137,6 +141,10 @@ public:
       snr = 0;
       rsrp = 0;
       counts = 0;
+      fake_detected_flag = false;
+      fake_detected_count = 0;
+      current_max = -1000000000;
+      current_min = 1000000000;
     }
     void snr_rsrp_update(double snr_, double rsrp_)
     {
@@ -150,7 +158,18 @@ public:
     }
     double get_rsrp_avg()
     {
-      return rsrp / (double)counts;
+      double rsrp_tmp = rsrp / (double)counts;
+      if(rsrp_tmp > current_max){
+        current_max = rsrp_tmp;
+      }
+      if(rsrp_tmp < current_min){
+        current_min = rsrp_tmp;
+      }
+      return rsrp_tmp;
+    }
+    double get_rsrp_range()
+    {
+      return (current_max - current_min);
     }
     int get_counts()
     {
@@ -172,6 +191,7 @@ protected:
   bool    do_tti;
   static bool    sib_recv,sib2_recv, auth_rqst, auth_succ, is_fake;
   static bool    detecte_dB_mode;
+  static double  current_max, current_min, current_range;
   static Timer my_timer;
   static message_control msg_control;
 

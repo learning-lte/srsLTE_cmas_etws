@@ -41,7 +41,6 @@ bool log_filter::auth_succ   = false;
 bool log_filter::is_fake     = false;
 bool log_filter::detecte_dB_mode = true;
 int  log_filter::fake_detected_count = 0;
-int  log_filter::batch_time = 0;
 double log_filter::current_max = -1000000;
 double log_filter::current_min = 1000000;
 double log_filter::current_range = 0;
@@ -158,9 +157,9 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
             msg_control.set_cid(cid_str);
           }
           // parse sib message
-          parse_sib(log_content);
+          parse_sib(log_content, buffer_time);
           // fake station detection
-          fake_detection(log_content, buffer_time);
+          fake_detection(log_content);
           // printf("This is time : %s\n", buffer_time);
       }
 
@@ -372,7 +371,7 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
     }
     return "";
 }
-void log_filter::parse_sib(std::string log_content)
+void log_filter::parse_sib(std::string log_content, char buffer_time[])
 {
     if (log_content.find("warningMessageSegment-r9") != std::string::npos && !sib_recv)
     {
@@ -397,11 +396,40 @@ void log_filter::parse_sib(std::string log_content)
     }
     else if (log_content.find("Processing SIB2") != std::string::npos)
     {
-      msg_control.reset_snr_rsrp();
-      sib2_recv = true;
-      is_fake = false;
+      if(sib2_recv)
+      {
+        std::cout << "Range = " << current_range << std::endl;
+        std::cout << "Counting = " << fake_detected_count << std::endl;
+        if(current_range > 15)
+        {
+          fake_detected_count++;
+          // Show detected message
+          if(fake_detected_count > 3)
+          {
+            double snr_avg = msg_control.get_snr_avg();
+            double rsrp_cur_avg = msg_control.get_rsrp_avg();
+            std::cout << "SNR avg = " << snr_avg << ", RSRP avg = " << rsrp_cur_avg << std::endl;
+            fake_station_process(buffer_time);
+            sib2_recv = false;
+            is_fake = false;
+          }
+        }
+        else
+        {
+          fake_detected_count = 0;
+        }
+        current_range = 0;
+        current_max = -1000000;
+        current_min = 1000000;
+      }
+      else
+      {
+        msg_control.reset_snr_rsrp();
+        sib2_recv = true;
+        is_fake = false; 
+      }
     }
-    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=-") != std::string::npos && sib2_recv && msg_control.get_counts() < 100)
+    else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=-") != std::string::npos && sib2_recv)
     {
       int pos1 = log_content.find("SNR="), pos2 = log_content.find("RSRP=-");
       std::string snr, rsrp;
@@ -430,75 +458,16 @@ void log_filter::fake_station_process(char buffer_time[])
     msg_control.show_dialog();
     my_timer.stop();
 }
-void log_filter::fake_detection(std::string log_content, char buffer_time[])
+void log_filter::fake_detection(std::string log_content)
 {
-    //if (is_fake) return;
-    if (!detecte_dB_mode && sib_recv && my_timer.timer_enable())
+  if (detecte_dB_mode && sib_recv)
+  {
+    if(msg_control.get_counts() == 100)
     {
-      float pass = my_timer.update();
-      if (!auth_rqst)
-      {
-        //Check recieve Authentication Request?
-        if (log_content.find("Authentication Request") != std::string::npos) 
-        {
-          auth_rqst = true;
-          my_timer.reset();
-        }
-        else if (pass > 60.0) // After 60sec without Authentication Request
-        {
-          //this station is fake
-          fake_station_process(buffer_time);
-        }
-      }
-      else if (auth_rqst && !auth_succ)
-      {
-        //Check Network authentication successful?
-        if (log_content.find("Network authentication successful") != std::string::npos) 
-        {
-          auth_succ = true;
-          my_timer.stop();
-        }
-        else if (pass > 10.0) // After 10sec without Network Successful
-        {
-          //this station is fake
-          fake_station_process(buffer_time);
-        }        
-      }
+      double rsrp_cur_avg = msg_control.get_rsrp_avg();
+      msg_control.reset_snr_rsrp();
     }
-    else if (detecte_dB_mode)
-    {
-      if(msg_control.get_counts() >= 100)
-      {
-        batch_time++;
-        //std::string q = "bash /shell/warning.sh 123 456"; 
-        //int k = system(q.c_str());
-        double rsrp_cur_avg = msg_control.get_rsrp_avg();
-        double rsrp_cur_ran = msg_control.get_rsrp_range();
-        if(msg_control.get_rsrp_range() > 15)
-        {
-          if(last_range != current_range)
-          {
-            std::cout << "Range = " << rsrp_cur_ran << std::endl;
-            std::cout << "Counting = " << fake_detected_count << std::endl;
-            last_range = current_range;
-            fake_detected_count++;
-          }
-          if(fake_detected_count > 2 && batch_time < 15)
-          {
-            double snr_avg = msg_control.get_snr_avg();
-            std::cout << "SNR avg = " << snr_avg << ", RSRP avg = " << rsrp_cur_avg << std::endl;
-            sib2_recv = false;
-            fake_station_process(buffer_time);
-          }
-        }
-        if(batch_time >= 100)
-        {
-          batch_time = 0;
-          fake_detected_count = 0;
-        }
-        msg_control.reset_snr_rsrp();
-      }
-    }
+  }
 }
 
 } // namespace srslte

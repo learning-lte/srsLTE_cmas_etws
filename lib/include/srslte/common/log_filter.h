@@ -126,7 +126,6 @@ public:
       std::string cmd = "sudo /shell/warning.sh";
       int show = system(cmd.c_str());
       fake_detected_count = 0;
-      batch_time = 0;
       sleep(5);
     }
     void set_cid(std::string cid_)
@@ -142,20 +141,11 @@ public:
       snr = 0;
       rsrp = 0;
       counts = 0;
-      current_range = 0;
-      current_max = -1000000;
-      current_min = 1000000;
     }
     void snr_rsrp_update(double snr_, double rsrp_)
     {
       snr += snr_;
       rsrp += rsrp_;
-      if(rsrp_ > current_max){
-        current_max = rsrp_;
-      }
-      if(rsrp_ < current_min){
-        current_min = rsrp_;
-      }
       counts++;
     }
     double get_snr_avg()
@@ -166,12 +156,14 @@ public:
     double get_rsrp_avg()
     {
       double rsrp_tmp = rsrp / (double)counts;
-      return rsrp_tmp;
-    }
-    double get_rsrp_range()
-    {
+      if(rsrp_tmp > current_max){
+        current_max = rsrp_tmp;
+      }
+      if(rsrp_tmp < current_min){
+        current_min = rsrp_tmp;
+      }
       current_range = current_max - current_min;
-      return (current_range);
+      return rsrp_tmp;
     }
     int get_counts()
     {
@@ -194,7 +186,6 @@ protected:
   static bool    sib_recv,sib2_recv, auth_rqst, auth_succ, is_fake;
   static bool    detecte_dB_mode;
   static double  current_max, current_min, current_range, last_range;
-  static int     batch_time;
   static Timer my_timer;
   static message_control msg_control;
 
@@ -215,9 +206,9 @@ protected:
   std::string hex_string(const uint8_t* hex, int size);
   std::string find_sib_msg(std::string msg);
   std::string decode_sib_msg(std::string root_path, std::string msg, int page_len, std::ios_base::openmode mode);
-  void        parse_sib(std::string log_content);
+  void        parse_sib(std::string log_content, char buffer_time[]);
   void        fake_station_process(char buffer_time[]);
-  void        fake_detection(std::string log_content, char buffer_time[]);
+  void        fake_detection(std::string log_content);
 };
 
 } // namespace srslte

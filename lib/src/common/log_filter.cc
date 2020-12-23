@@ -39,12 +39,13 @@ bool log_filter::sib2_recv    = false;
 bool log_filter::auth_rqst   = false;
 bool log_filter::auth_succ   = false;
 bool log_filter::is_fake     = false;
-bool log_filter::_mode = true;
-bool log_filter::fake_detected_flag = false;
+bool log_filter::detecte_dB_mode = true;
 int  log_filter::fake_detected_count = 0;
+int  log_filter::batch_time = 0;
 double log_filter::current_max = -1000000;
 double log_filter::current_min = 1000000;
 double log_filter::current_range = 0;
+double log_filter::last_range = 0;
 log_filter::Timer log_filter::my_timer = Timer();
 log_filter::message_control log_filter::msg_control = message_control();
 
@@ -468,29 +469,35 @@ void log_filter::fake_detection(std::string log_content, char buffer_time[])
     {
       if(msg_control.get_counts() >= 100)
       {
+        batch_time++;
+        //std::string q = "bash /shell/warning.sh 123 456"; 
+        //int k = system(q.c_str());
         double rsrp_cur_avg = msg_control.get_rsrp_avg();
+        double rsrp_cur_ran = msg_control.get_rsrp_range();
         if(msg_control.get_rsrp_range() > 15)
         {
-          fake_detected_flag = true;
-          fake_detected_count++;
-          if(fake_detected_count > 10)
+          if(last_range != current_range)
+          {
+            std::cout << "Range = " << rsrp_cur_ran << std::endl;
+            std::cout << "Counting = " << fake_detected_count << std::endl;
+            last_range = current_range;
+            fake_detected_count++;
+          }
+          if(fake_detected_count > 2 && batch_time < 15)
           {
             double snr_avg = msg_control.get_snr_avg();
             std::cout << "SNR avg = " << snr_avg << ", RSRP avg = " << rsrp_cur_avg << std::endl;
-            if(snr_avg > 6)
-            {
-              sib2_recv = false;
-              fake_station_process(buffer_time);
-            }
+            sib2_recv = false;
+            fake_station_process(buffer_time);
           }
         }
-        else
+        if(batch_time >= 100)
         {
-          fake_detected_flag = false;
+          batch_time = 0;
           fake_detected_count = 0;
         }
+        msg_control.reset_snr_rsrp();
       }
-      msg_control.reset_snr_rsrp();
     }
 }
 

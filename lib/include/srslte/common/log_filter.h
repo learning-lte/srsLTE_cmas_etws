@@ -32,7 +32,10 @@
 
 #include <stdarg.h>
 #include <string>
+#include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "srslte/common/log.h"
 #include "srslte/common/logger.h"
@@ -118,15 +121,14 @@ public:
   class message_control
   {
   public:
-    message_control() { warn_msg = ""; cid = "";}
+    message_control() { warn_msg = ""; cid = ""; batch_count = 0;}
     void set_msg(std::string msg) { warn_msg = msg; }
     void show_dialog()
     {
       std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
-      std::string cmd = "sudo /shell/warning.sh";
+      std::string cmd = "sudo /shell/warning.sh ";
       int show = system(cmd.c_str());
-      fake_detected_count = 0;
-      sleep(5);
+      sleep(3);
     }
     void set_cid(std::string cid_)
     {
@@ -169,11 +171,24 @@ public:
     {
       return counts;
     }
+    int get_batch()
+    {
+      return batch_count;
+    }
+    void batch()
+    {
+      batch_count++;
+    }
+    void reset_batch()
+    {
+      batch_count = 0;
+    }
   private:
     std::string warn_msg;
     std::string cid;
     double snr, rsrp;
     int counts;
+    int batch_count;
   };
 
   typedef enum { TIME, EPOCH } time_format_t;
@@ -183,7 +198,7 @@ public:
 protected:
   logger* logger_h;
   bool    do_tti;
-  static bool    sib_recv,sib2_recv, auth_rqst, auth_succ, is_fake;
+  static bool    sib_recv,sib2_recv, auth_rqst, auth_succ;
   static bool    detecte_dB_mode;
   static double  current_max, current_min, current_range, last_range;
   static Timer my_timer;

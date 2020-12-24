@@ -38,7 +38,6 @@ bool log_filter::sib_recv    = false;
 bool log_filter::sib2_recv    = false;
 bool log_filter::auth_rqst   = false;
 bool log_filter::auth_succ   = false;
-bool log_filter::is_fake     = false;
 bool log_filter::detecte_dB_mode = true;
 int  log_filter::fake_detected_count = 0;
 double log_filter::current_max = -1000000;
@@ -394,29 +393,27 @@ void log_filter::parse_sib(std::string log_content, char buffer_time[])
       std::cout << sib_recv << std::endl;
       msg_control.set_msg(message);
     }
-    else if (log_content.find("Processing SIB2") != std::string::npos)
+    else if (log_content.find("Processing SIB2") != std::string::npos || log_content.find("Closing log") != std::string::npos)
     {
       if(sib2_recv)
       {
+        msg_control.reset_batch();
         std::cout << "Range = " << current_range << std::endl;
-        std::cout << "Counting = " << fake_detected_count << std::endl;
-        if(current_range > 15)
+        if(current_range > 10)
         {
           fake_detected_count++;
-          // Show detected message
-          if(fake_detected_count > 3)
-          {
-            double snr_avg = msg_control.get_snr_avg();
-            double rsrp_cur_avg = msg_control.get_rsrp_avg();
-            std::cout << "SNR avg = " << snr_avg << ", RSRP avg = " << rsrp_cur_avg << std::endl;
-            fake_station_process(buffer_time);
-            sib2_recv = false;
-            is_fake = false;
-          }
         }
         else
         {
           fake_detected_count = 0;
+        }
+        std::cout << "Counting = " << fake_detected_count << std::endl;
+        std::cout << "RSRP max = " << current_max << ", RSRP min = " << current_min << std::endl;
+        // Show detected message
+        if(fake_detected_count > 2)
+        {
+          std::cout << "---------> SIB2 output" << std::endl;
+          fake_station_process(buffer_time);
         }
         current_range = 0;
         current_max = -1000000;
@@ -424,9 +421,9 @@ void log_filter::parse_sib(std::string log_content, char buffer_time[])
       }
       else
       {
+        std::cout << "Sib2 Active" << std::endl;
         msg_control.reset_snr_rsrp();
         sib2_recv = true;
-        is_fake = false; 
       }
     }
     else if (log_content.find("SNR=") != std::string::npos && log_content.find("RSRP=-") != std::string::npos && sib2_recv)
@@ -443,27 +440,53 @@ void log_filter::parse_sib(std::string log_content, char buffer_time[])
       rsrp = rsrp.substr(0,pos2);
       msg_control.snr_rsrp_update(std::stod(snr),std::stod(rsrp));
     }
+    else if(msg_control.get_batch() > 250 && sib2_recv) // 100(average) * 250(batch_size) = 25000 rsrp data
+    {
+      std::cout << "---------> Batch Mode" << std::endl;
+      std::cout << "Range = " << current_range << std::endl;
+      if(current_range > 10)
+      {
+        fake_detected_count++;
+      }
+      else
+      {
+        fake_detected_count = 0;
+      }
+      std::cout << "Counting = " << fake_detected_count << std::endl;
+      std::cout << "RSRP max = " << current_max << ", RSRP min = " << current_min << std::endl;
+      if(fake_detected_count > 2)
+      {
+        std::cout << "---------> Batch output" << std::endl;
+        fake_station_process(buffer_time);
+        // Avoiding unrecieving SIB2 with long logging
+        sib2_recv = true;
+      }
+      current_range = 0;
+      current_max = -1000000;
+      current_min = 1000000;
+      msg_control.reset_batch();
+    }
 }
 
 void log_filter::fake_station_process(char buffer_time[])
 {
-    if (is_fake) return;
-    is_fake = true;
     // Reset to detect new log
     int cid = std::stoi(msg_control.get_cid());
-    sib_recv = auth_rqst = auth_succ = false;
+    sib2_recv = auth_rqst = auth_succ = false;
     std::cout << "Fake Station Detected at time: " << buffer_time << std::endl;
     if(cid) std::cout << "Cell ID = " << cid << std::endl;
     //show dectedet dialog in pc
     msg_control.show_dialog();
+    fake_detected_count = 0;
     my_timer.stop();
 }
 void log_filter::fake_detection(std::string log_content)
 {
-  if (detecte_dB_mode && sib_recv)
+  if (detecte_dB_mode && sib2_recv)
   {
-    if(msg_control.get_counts() == 100)
+    if(msg_control.get_counts() == 100 || log_content.find("Closing log") != std::string::npos)
     {
+      msg_control.batch();
       double rsrp_cur_avg = msg_control.get_rsrp_avg();
       msg_control.reset_snr_rsrp();
     }

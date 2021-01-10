@@ -210,7 +210,7 @@ public:
       current_max = -1000000;
       current_min = 1000000;
     }
-    bool sib12_recv()
+    bool get_sib12_recv()
     {
       return sib12_recv;
     }
@@ -255,7 +255,7 @@ protected:
   std::string decode_sib_msg(std::string root_path, std::string msg, int page_len, std::ios_base::openmode mode);
   void        parse_sib(std::string log_content, char buffer_time[]);
   void        fake_station_process(char buffer_time[]);
-  void        fake_detection(std::string log_content, bool new_sib2_recv);
+  void        fake_detection(std::string log_content, char buffer_time[], bool new_sib2_recv);
 };
 
 } // namespace srslte

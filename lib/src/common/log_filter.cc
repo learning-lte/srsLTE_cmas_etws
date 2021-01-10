@@ -154,7 +154,7 @@ void log_filter::all_log(srslte::LOG_LEVEL_ENUM level,
           // parse sib message
           parse_sib(log_content, buffer_time);
           // fake station detection
-          fake_detection(log_content, false);
+          fake_detection(log_content, buffer_time, false);
           // printf("This is time : %s\n", buffer_time);
       }
 
@@ -368,7 +368,7 @@ std::string log_filter::decode_sib_msg(std::string root_path, std::string msg, i
 }
 void log_filter::parse_sib(std::string log_content, char buffer_time[])
 {
-    if (log_content.find("warningMessageSegment-r9") != std::string::npos && !msg_control.sib12_recv())
+    if (log_content.find("warningMessageSegment-r9") != std::string::npos && !msg_control.get_sib12_recv())
     {
       int pages;
       sib_recv = true;
@@ -393,7 +393,7 @@ void log_filter::parse_sib(std::string log_content, char buffer_time[])
     {
       if(sib2_recv)
       {
-        fake_detection(log_content, true)
+        fake_detection(log_content, buffer_time, true);
       }
       else
       {
@@ -430,21 +430,21 @@ void log_filter::fake_station_process(char buffer_time[])
     fake_detected_count = 0;
     my_timer.stop();
 }
-void log_filter::fake_detection(std::string log_content, bool new_sib2_recv)
+void log_filter::fake_detection(std::string log_content, char buffer_time[], bool new_sib2_recv)
 {
   if (detecte_dB_mode && sib2_recv)
   {
     if(msg_control.get_counts() == 100 || log_content.find("Closing log") != std::string::npos) // Every 100 data ---> 1 batch
     {
-      msg_control.batch();
+      msg_control.batch_update();
       double rsrp_cur_avg = msg_control.get_rsrp_avg(); // get current rsrp average
       msg_control.reset_snr_rsrp();
     }
     else if((msg_control.get_batch() > 250 && sib2_recv) || new_sib2_recv) // 100(average) * 250(batch_size) = 25000 rsrp data
     {
-      std::cout << "---------> " << new_sib2_recv == false ? "Batch Mode" : "SIB2 Mode" << std::endl;
-      std::cout << "Range = " << msg_control.get_current_range() << std::endl;
-      if(msg_control.get_current_range() > 10)
+      std::cout << "---------> " << (new_sib2_recv == false ? "Batch Mode" : "SIB2 Mode") << std::endl;
+      std::cout << "Range = " << msg_control.get_batch_range() << std::endl;
+      if(msg_control.get_batch_range() > 10)
       {
         fake_detected_count++;
       }
@@ -453,7 +453,7 @@ void log_filter::fake_detection(std::string log_content, bool new_sib2_recv)
         fake_detected_count = 0;
       }
       std::cout << "Counting = " << fake_detected_count << std::endl;
-      std::cout << "RSRP max = " << msg_control.get_current_max() << ", RSRP min = " << msg_control.get_current_min() << std::endl;
+      std::cout << "RSRP max = " << msg_control.get_batch_max() << ", RSRP min = " << msg_control.get_batch_min() << std::endl;
       if(fake_detected_count >= 2)
       {
         if (!new_sib2_recv)

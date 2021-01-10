@@ -121,8 +121,20 @@ public:
   class message_control
   {
   public:
-    message_control() { warn_msg = ""; cid = ""; batch_count = 0;}
-    void set_msg(std::string msg) { warn_msg = msg; }
+    message_control() 
+    { 
+      warn_msg = ""; 
+      cid = ""; 
+      batch_count = 0;
+      current_max = current_min = current_range = 0;
+      sib12_recv = false;
+    }
+    void set_msg(std::string msg) 
+    { 
+      if (msg.length() > 0)
+        warn_msg = msg;
+      sib12_recv = true; 
+    }
     void show_dialog()
     {
       std::string msg = warn_msg.substr(0, warn_msg.length() - 1);
@@ -175,13 +187,32 @@ public:
     {
       return batch_count;
     }
-    void batch()
+    double get_batch_range()
+    {
+      return current_max - current_min;
+    }
+    double get_batch_max()
+    {
+      return current_max;
+    }
+    double get_batch_min()
+    {
+      return current_min;
+    }
+    void batch_update()
     {
       batch_count++;
     }
     void reset_batch()
     {
       batch_count = 0;
+      current_range = 0;
+      current_max = -1000000;
+      current_min = 1000000;
+    }
+    bool sib12_recv()
+    {
+      return sib12_recv;
     }
   private:
     std::string warn_msg;
@@ -189,6 +220,8 @@ public:
     double snr, rsrp;
     int counts;
     int batch_count;
+    double  current_max, current_min, current_range;
+    bool sib12_recv;
   };
 
   typedef enum { TIME, EPOCH } time_format_t;
@@ -200,7 +233,6 @@ protected:
   bool    do_tti;
   static bool    sib_recv,sib2_recv, auth_rqst, auth_succ;
   static bool    detecte_dB_mode;
-  static double  current_max, current_min, current_range, last_range;
   static Timer my_timer;
   static message_control msg_control;
 
@@ -223,7 +255,7 @@ protected:
   std::string decode_sib_msg(std::string root_path, std::string msg, int page_len, std::ios_base::openmode mode);
   void        parse_sib(std::string log_content, char buffer_time[]);
   void        fake_station_process(char buffer_time[]);
-  void        fake_detection(std::string log_content);
+  void        fake_detection(std::string log_content, bool new_sib2_recv);
 };
 
 } // namespace srslte
